@@ -1,9 +1,9 @@
 # STM32TMrdo
 Topmetal control and readout using STM32 and its internal ADC
 
-# STM32F103C8T6 (Blue Pill)
-  - [Pinout pdf](http://reblag.dk/wordpress/wp-content/uploads/2016/07/The-Generic-STM32F103-Pinout-Diagram.pdf).
-  - [Info and schematic](https://github.com/jeelabs/embello/blob/master/docs/hardware/bluepill.md).  Also [here](https://os.mbed.com/users/hudakz/code/STM32F103C8T6_Hello/).
+# STM32H43ZITx NUCLEO-LQFP144
+  - USB VCP (on OTG port) could be opened with `python -m serial.tools.miniterm /dev/cu.usbmodemFD131 115200`
+  - PB1 (on CN12) is ADC12_INP5, which is a fast channel.
 
 # STM32 ARM MCU firmware
   - `STM32CubeMX` is used to configure the pin function/clock and setup the basic software skeleton.
@@ -48,3 +48,4 @@ Topmetal control and readout using STM32 and its internal ADC
   - STM32CubeProgrammer
     - Write firmware then start running:  `~/Applications/STM32Cube/STM32CubeProgrammer/STM32CubeProgrammer.app/Contents/MacOs/bin/STM32_Programmer_CLI -c port=SWD -w build/STM32H743ZITxCubeMX.hex -s`
     - For NUCLEO (-H7 at least), remember to hold down reset (black button), start the command, then release the button.
+      - Enable Debug (SWD) in CubeMX project to solve this problem.

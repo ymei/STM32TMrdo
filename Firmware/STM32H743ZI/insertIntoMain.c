@@ -65,7 +65,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
 {
     HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_SET);
-    //SCB_InvalidateDCache_by_Addr((uint32_t *)adc_buf, ADC_BUF_LEN);
+    SCB_InvalidateDCache_by_Addr((uint32_t *)adc_buf, ADC_BUF_LEN);
 }
 void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
 {
@@ -169,6 +169,24 @@ static cmdinterp_data_t cmdinterp_pwm(cmdinterp_t *hdl)
     stm32_pwm_update_ccr(v);
     return ret;
 }
+static cmdinterp_data_t cmdinterp_adc(cmdinterp_t *hdl)
+{
+    cmdinterp_data_t ret = {1};
+    uint16_t v = (uint16_t)hdl->param[0].i;
+
+    volatile uint16_t *val = (uint16_t*)adc_buf;
+    printf("\n");
+    int i, j, k=0;
+    for (j=0; j<23; j++) {
+        for (i=0; i<16; i++)
+            if (v)
+                printf("%4d ", (int16_t)val[k++]);
+            else
+                printf("%04x ", val[k++]);
+        printf("\n");
+    }
+    return ret;
+}
 static cmdinterp_data_t cmdinterp_statq(cmdinterp_t *hdl)
 {
     cmdinterp_data_t ret = {1};
@@ -182,6 +200,7 @@ static const cmdinterp_funcmap_t cmdfuncmap[] = {
     {"chc", (cmdinterp_cmdfunc_t)cmdinterp_chc, 2},
     {"drv", (cmdinterp_cmdfunc_t)cmdinterp_drv, 1},
     {"pwm", (cmdinterp_cmdfunc_t)cmdinterp_pwm, 1},
+    {"adc", (cmdinterp_cmdfunc_t)cmdinterp_adc, 1},
     {"stat?", (cmdinterp_cmdfunc_t)cmdinterp_statq, 1},
     {NULL, NULL, 0}
 };
