@@ -19,9 +19,10 @@ extern volatile uint8_t usb_recv_buf[]; // extern must declare array here.
 /** PWM counter max value.  Equal is not allowed. */
 #define STM32_PWM_CNT_MAX (STM32_FCLK/STM32_PWM_FREQ)
 /** ADC DMA buffer. */
-#define ADC_BUF_LEN 72*72
-static volatile __attribute__((section(".dma_buf"))) __attribute__((aligned(0x20)))
-uint32_t adc_buf[ADC_BUF_LEN];
+#define ADC_BUF_LEN 72*72 /* should be multiple of 32. */
+static volatile __attribute__((section(".dma_buf")))
+ALIGN_32BYTES(uint32_t adc_buf[ADC_BUF_LEN]);
+/* Aligned to 32-byte (0x20) is important for SCB_InvalidateDCache_by_Addr() to work. */
 
 /*oo00OO00oo PWM control oo00OO00oo<*/
 void stm32_pwm_update_ccr(uint16_t v)
@@ -34,8 +35,17 @@ void stm32_pwm_update_ccr(uint16_t v)
 void adc_init()
 {
     // Calibration must be done when ADC is disabled.
-    HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET_LINEARITY, ADC_SINGLE_ENDED);
-    // HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, ADC_BUF_LEN);
+    if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) != HAL_OK) {
+        Error_Handler();
+    }
+    if (HAL_ADCEx_Calibration_Start(&hadc2, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) != HAL_OK) {
+        Error_Handler();
+    }
+    /*
+    if (HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, ADC_BUF_LEN) != HAL_OK) {
+        Error_Handler();
+    }
+    */
 /* Start ADC1 in interrupt mode. */
 //    HAL_ADC_Start_IT(&hadc1);
 }
@@ -44,6 +54,8 @@ void adc_init()
  */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
+    SCB_InvalidateDCache_by_Addr((uint32_t *)(&adc_buf[ADC_BUF_LEN/2]), sizeof(adc_buf)/2);
+
     int i;
     static int j;
     j++;
@@ -65,7 +77,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
 {
     HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_SET);
-    SCB_InvalidateDCache_by_Addr((uint32_t *)adc_buf, ADC_BUF_LEN);
+    SCB_InvalidateDCache_by_Addr((uint32_t *)adc_buf, sizeof(adc_buf)/2);
 }
 void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
 {
@@ -145,7 +157,12 @@ static cmdinterp_data_t cmdinterp_drv(cmdinterp_t *hdl)
         printf("\nDrvEN is %d\n", HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_1));
         return ret;
     }
+    /*
     if (HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, ADC_BUF_LEN) != HAL_OK) {
+        Error_Handler();
+    }
+    */
+    if (HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)adc_buf, ADC_BUF_LEN) != HAL_OK) {
         Error_Handler();
     }
     HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, s);

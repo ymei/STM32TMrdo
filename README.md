@@ -4,6 +4,14 @@ Topmetal control and readout using STM32 and its internal ADC
 # STM32H43ZITx NUCLEO-LQFP144
   - USB VCP (on OTG port) could be opened with `python -m serial.tools.miniterm /dev/cu.usbmodemFD131 115200`
   - PB1 (on CN12) is ADC12_INP5, which is a fast channel.
+  - D-Cache could cause [DMA issues](https://community.st.com/s/article/FAQ-DMA-is-not-working-on-STM32H7-devices)
+  - [Examples](https://github.com/STMicroelectronics/STM32CubeH7) are very valuable.
+## ADC
+  - t_conv = 4.5 CLK (8bit) ~ 8.5 CLK (16bit), 1 CLK for every 2 bits.
+  - t_samp >= 1.5 CLK.
+  - 16-bit mode max sample rate is 3.6 Msps.
+  - ADC1 and ADC2 are in AHB1/D2 (domain 2).
+  - Fadc = 75MHz / a select factor.  Max is 36MHz (BOOST=1), 20MHz (BOOST=0).
 
 # STM32 ARM MCU firmware
   - `STM32CubeMX` is used to configure the pin function/clock and setup the basic software skeleton.

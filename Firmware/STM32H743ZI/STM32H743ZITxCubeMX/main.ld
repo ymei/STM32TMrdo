@@ -73,11 +73,11 @@ FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 2048K
 SECTIONS
 {
   /* section for mem destination of dma */
-  .ram_d1 ORIGIN(RAM_D1) (NOLOAD):
+  .ram_d2 ORIGIN(RAM_D2) (NOLOAD):
   {
     . = ALIGN(4);
     *(.dma_buf*)
-  } >RAM_D1
+  } >RAM_D2
 
   /* The startup code goes first into FLASH */
   .isr_vector :
