@@ -152,19 +152,30 @@ static cmdinterp_data_t cmdinterp_drv(cmdinterp_t *hdl)
     cmdinterp_data_t ret = {1};
     int c = hdl->param[0].i;
     GPIO_PinState s;
-    if(c) {s = GPIO_PIN_SET;} else {s = GPIO_PIN_RESET;}
-    if(hdl->nparam < 1) {
+    if (c) {s = GPIO_PIN_SET;} else {s = GPIO_PIN_RESET;}
+    if (hdl->nparam < 1) {
         printf("\nDrvEN is %d\n", HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_1));
         return ret;
     }
-    /*
-    if (HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, ADC_BUF_LEN) != HAL_OK) {
-        Error_Handler();
+    switch (c) {
+    case 1:
+        /*
+          if (HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, ADC_BUF_LEN) != HAL_OK) {
+          Error_Handler();
+          }
+        */
+        if (HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)adc_buf, ADC_BUF_LEN) != HAL_OK) {
+            Error_Handler();
+        }
+        break;
+    case 0:
+    default:
+        if (HAL_ADCEx_MultiModeStop_DMA(&hadc1) != HAL_OK) {
+            Error_Handler();
+        }
+        break;
     }
-    */
-    if (HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)adc_buf, ADC_BUF_LEN) != HAL_OK) {
-        Error_Handler();
-    }
+
     HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, s);
     printf("\nDrvEN set to %d.\n", c);
     return ret;
@@ -194,21 +205,46 @@ static cmdinterp_data_t cmdinterp_adc(cmdinterp_t *hdl)
     volatile uint16_t *val = (uint16_t*)adc_buf;
     printf("\n");
     int i, j, k=0;
-    for (j=0; j<23; j++) {
-        for (i=0; i<16; i++)
-            if (v)
-                printf("%4d ", (int16_t)val[k++]);
-            else
+    switch (v) {
+    case 0:
+        for (j=0; j<23; j++) {
+            for (i=0; i<16; i++)
                 printf("%04x ", val[k++]);
-        printf("\n");
+            printf("\n");
+        }
+        break;
+    case 1:
+        for (j=0; j<ADC_BUF_LEN*sizeof(adc_buf[0])/2; j++)
+            printf("%-6d\n", val[k++]);
+        break;
     }
     return ret;
 }
 static cmdinterp_data_t cmdinterp_statq(cmdinterp_t *hdl)
 {
     cmdinterp_data_t ret = {1};
+
     printf("\nLED: %d\n",
            HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_1));
+
+    /* Temporary variable to retrieve RCC clock configuration */
+    RCC_ClkInitTypeDef clk_init_struct = {0};
+    /* Temporary variable to retrieve Flash Latency */
+    uint32_t latency;
+    /* Timer clock frequency */
+    uint32_t timer_clock_frequency = 0;
+    /* Retrieve timer clock source frequency */
+    HAL_RCC_GetClockConfig(&clk_init_struct, &latency);
+    /* If APB1 prescaler is different of 1, timers have a factor x2 on their    */
+    /* clock source.                                                            */
+    if (clk_init_struct.APB1CLKDivider == RCC_HCLK_DIV1) {
+        timer_clock_frequency = HAL_RCC_GetPCLK1Freq();
+    } else {
+        timer_clock_frequency = HAL_RCC_GetPCLK1Freq() *2;
+    }
+    printf("APB1 PCLK1 freq = %ld, timer freq = %ld\n",
+           HAL_RCC_GetPCLK1Freq(), timer_clock_frequency);
+
     fflush(stdout);
     return ret;
 }

@@ -11,13 +11,17 @@ Topmetal control and readout using STM32 and its internal ADC
   - t_samp >= 1.5 CLK.
   - 16-bit mode max sample rate is 3.6 Msps.
   - ADC1 and ADC2 are in AHB1/D2 (domain 2).
-  - Fadc = 75MHz / a select factor.  Max is 36MHz (BOOST=1), 20MHz (BOOST=0).
+  - Fadc = 72MHz / 2 / a select factor.  Max is 36MHz (BOOST=1), 20MHz (BOOST=0).
+    - The extra /2 factor is introduced by silicon revision V.
+    - BOOST should be automatically handled by `HAL_ADC_Init()`.
+    - In code, manually setting `hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;` seems to work.
 
 # STM32 ARM MCU firmware
   - `STM32CubeMX` is used to configure the pin function/clock and setup the basic software skeleton.
     - Make sure SYS->Debug = Serial Wire is selected.  Otherwise future flash writing will be disabled.
     - Choose `Makefile` under `Toolchain/IDE` for GNU-RM compatible skeleton.
     - Choose HAL set all free pins as analog and Enable full assert.
+    - Choose copy all used libraries into the project folder so that `make` won't rely on independently installed Cube FW package (SDK).
     - Make minimal modification to the generated code.  Place the majority of user code in separate files one level up to the generated code directory.
     - It seems asking the software to update the already generated files is not reliable.  Better delete all generated files and re-generate.
     - After copying the files over, run `cleanCube.sh` to clean up the file permissions and add additional information into `Makefile`.  New `makefile` is generated and `make` will pick up the new one automatically.  Modify `cleanCube.sh` accordingly when new `.c` files are added.

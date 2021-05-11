@@ -80,6 +80,7 @@ sed -e 's/$//; s/[ 	]*$//' \
         a \
 \ \ printf("Error: file %s, line %lu\\n", file, line);
         }' \
+    -e 's/ADC_CLOCK_ASYNC_DIV2/ADC_CLOCK_ASYNC_DIV1/g' \
     "$mf" > "$mfo"
 
 # Create a new usbd_cdc_if.c file with local additions.
