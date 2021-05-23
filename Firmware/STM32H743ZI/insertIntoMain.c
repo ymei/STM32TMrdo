@@ -23,6 +23,13 @@ extern volatile uint8_t usb_recv_buf[]; // extern must declare array here.
 static volatile __attribute__((section(".dma_buf")))
 ALIGN_32BYTES(uint32_t adc_buf[ADC_BUF_LEN]);
 /* Aligned to 32-byte (0x20) is important for SCB_InvalidateDCache_by_Addr() to work. */
+/** DAC DMA data buffer. */
+#define DAC_BUF_LEN 32
+static volatile __attribute__((section(".dma_buf")))
+ALIGN_32BYTES(uint16_t dac_buf[DAC_BUF_LEN]);  /* 12-bit, right(lsb)-aligned. */
+const uint16_t dac_sine_wave[DAC_BUF_LEN] = {
+    2047, 2446, 2831, 3185, 3495, 3749, 3939, 4055, 4095, 4055, 3939, 3749, 3495, 3185, 2831, 2446, 2047, 1648, 1263, 909, 599, 345, 155, 39, 0, 39, 155, 345, 599, 909, 1263, 1648
+};
 
 /*oo00OO00oo PWM control oo00OO00oo<*/
 void stm32_pwm_update_ccr(uint16_t v)
@@ -90,6 +97,26 @@ void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
 }
 /*oo00OO00oo ADC oo00OO00oo>*/
+
+/*oo00OO00oo DAC oo00OO00oo<*/
+void dac_init()
+{
+    int i;
+    for (i=0; i<DAC_BUF_LEN; i++)
+        dac_buf[i] = dac_sine_wave[i];
+
+    /* TIM runs at 200MHz */
+    /* After HAL_TIM_Base_Init(&htim6), one has to directly manipulate registers. */
+    TIM6->PSC = 0; /* counter freq = f / (PSC + 1). */
+    TIM6->ARR = 199; /* i.e. period is val+1 */
+
+    HAL_TIM_Base_Start(&htim6);
+    HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
+    HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1,
+                      (uint32_t*)dac_sine_wave, DAC_BUF_LEN, DAC_ALIGN_12B_R);
+}
+
+/*oo00OO00oo DAC oo00OO00oo>*/
 
 /*oo00OO00oo Command interpreter oo00OO00oo<*/
 static int cmdinterp_nextc(void *s)
@@ -286,6 +313,8 @@ void stm32_init()
     setvbuf(stdin, NULL, _IONBF, 0);
     /* Initialize ADC */
     adc_init();
+    /* Initialize DAC */
+    dac_init();
 }
 
 void stm32_main_loop()
