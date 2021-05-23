@@ -289,24 +289,27 @@ static cmdinterp_t interp;
 
 void stm32_init()
 {
-    TIM_OC_InitTypeDef sConfigOC = {0};
+    /* Enable timer TIM8 */
+    HAL_TIM_Base_Start(&htim8);
+    HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
+    HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
+    HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_4);
+    TIM8->ARR = 16383; /* PWM counter would INC to this value then start to DEC back to 0. */
+    /* CAUTION!  The high-low ordering is counterintuitive. */
+    TIM8->CCR1 = 16383; /* go low at up-counting */
+    TIM8->CCR2 = 0;     /* go high at down-counting */
+    TIM8->CCR3 = 8192;  /* go high at up-counting */
+    TIM8->CCR4 = 16383; /* go low at down-counting */
 
-    /* Initialize TIM1/PWM */
-    htim1.Init.Period = (STM32_FCLK/STM32_PWM_FREQ)-1;
-    if(HAL_TIM_Base_Init(&htim1) != HAL_OK)
-        Error_Handler();
-    sConfigOC.OCMode = TIM_OCMODE_PWM1;
-    sConfigOC.Pulse = 0;
-    sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
-    sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-    sConfigOC.OCIdleState = TIM_OCIDLESTATE_SET;
-    sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-    if(HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-        Error_Handler();
-    /* Enable timer TIM1 */
-    HAL_TIM_Base_Start(&htim1);
-    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+    /* Enable timer TIM4 */
+    HAL_TIM_Base_Start(&htim4);
+    HAL_TIM_OnePulse_Start(&htim4, TIM_CHANNEL_1);
+    TIM4->CCR2 = 65535;
+    HAL_TIM_OnePulse_Start(&htim4, TIM_CHANNEL_2);
+    TIM4->ARR = 1024;  /* pulse stays high until CNT reaches this value. */
+    TIM4->CCR1 = 512;  /* delay after trigger event, must >0. */
+
     /* Initialize interpreter */
     cmdinterp_init(&interp, NULL, cmdinterp_nextc, cmdfuncmap);
     /* Turn off stdin buffer. */

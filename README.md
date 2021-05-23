@@ -22,6 +22,14 @@ Topmetal control and readout using STM32 and its internal ADC
 ## DAC
   - DAC1_OUT1 is routed out to PA4 (CN11 pin 32).  If ADC channel and DAC channel are selected on the same GPIO, connection is done internally in GPIO pad, user has nothing to connect.
   - DAC is on APB1 (120MHz max), 12-bit.  TIM6 and TIM7 are usually used for triggering DAC.
+## Timer
+  - TIM8 set to asymmetric PWM mode to generate chip clock and ADC sampling trigger with precise phase offset control.
+    - CH1 (Pin PC6) is clock output.
+    - CH3 (Pin PC8) is ADC trigger output.
+  - TIM4 is set to be the slave of TIM8.
+    - CH1 (Pin PD12) outputs one pulse every time TIM8_CH3 is at rising edge.
+    - CH2 (Pin PD13) outputs constant high.
+  - TIM6 triggers the DAC.
 
 # STM32 ARM MCU firmware
   - `STM32CubeMX` is used to configure the pin function/clock and setup the basic software skeleton.
