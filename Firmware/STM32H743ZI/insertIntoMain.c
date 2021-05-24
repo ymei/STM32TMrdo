@@ -31,6 +31,60 @@ const uint16_t dac_sine_wave[DAC_BUF_LEN] = {
     2047, 2446, 2831, 3185, 3495, 3749, 3939, 4055, 4095, 4055, 3939, 3749, 3495, 3185, 2831, 2446, 2047, 1648, 1263, 909, 599, 345, 155, 39, 0, 39, 155, 345, 599, 909, 1263, 1648
 };
 
+/*oo00OO00oo GPIO input oo00OO00oo<*/
+static volatile int button_pushed = 0;
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    switch (GPIO_Pin) {
+    case USER_Btn_Pin: /* GPIOC, GPIO_PIN_13 in STM32H743ZITx NUCLEO-LQFP144 */
+        button_pushed = 1;
+        if (!HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0)) {
+            // __HAL_TIM_ENABLE(&htim4);
+            // TIM4->CR1 |= (TIM_CR1_CEN);
+        } else {
+            // TIM4->CR1 &= ~(TIM_CR1_CEN);
+        }
+        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+        if (button_pushed) {
+            GPIOE->BSRR = GPIO_PIN_10 << 16; /* Clear (zero) output. */
+            while ((TIM8->CNT & 0xffff)>2) {;
+                /* Sync TIM4_CEN to TIM8 more deterministically. */
+                /* !=0 seems to hang forever. */
+                /* This seems to reliably align TIM4 outputs to the rising edge of pixel clock. */
+            }
+            TIM4->CR1 |= (TIM_CR1_CEN);
+            button_pushed = 0;
+        }
+        break;
+    case GPIO_PIN_7:
+    default:
+        // GPIOE->BSRR = GPIO_PIN_10; /* Set high. */
+        break;
+    }
+}
+/*oo00OO00oo GPIO input oo00OO00oo>*/
+
+/*oo00OO00oo Timer oo00OO00oo<*/
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
+{
+    int i;
+    if (htim == &htim4) {
+        /* Speak already high, which is an error condition.  But the
+         * following test doesn't seem to work. */
+        /*
+        if (GPIOD->ODR & GPIO_PIN_13) {
+            return;
+        }
+        */
+        for (i=0; i<40; i++)
+            asm("nop");
+
+        GPIOE->BSRR = GPIO_PIN_10;
+        /* Start ADC/DMA acquisition. */
+    }
+}
+/*oo00OO00oo Timer oo00OO00oo<*/
+
 /*oo00OO00oo PWM control oo00OO00oo<*/
 void stm32_pwm_update_ccr(uint16_t v)
 {
@@ -146,6 +200,29 @@ static cmdinterp_data_t cmdinterp_cmderr(cmdinterp_t *hdl)
     printf("msg: %s\n", hdl->msg);
     return ret;
 }
+static cmdinterp_data_t cmdinterp_adc(cmdinterp_t *hdl)
+{
+    cmdinterp_data_t ret = {1};
+    uint16_t v = (uint16_t)hdl->param[0].i;
+
+    volatile uint16_t *val = (uint16_t*)adc_buf;
+    printf("\n");
+    int i, j, k=0;
+    switch (v) {
+    case 0:
+        for (j=0; j<23; j++) {
+            for (i=0; i<16; i++)
+                printf("%04x ", val[k++]);
+            printf("\n");
+        }
+        break;
+    case 1:
+        for (j=0; j<ADC_BUF_LEN*sizeof(adc_buf[0])/2; j++)
+            printf("%-6d\n", val[k++]);
+        break;
+    }
+    return ret;
+}
 static cmdinterp_data_t cmdinterp_chc(cmdinterp_t *hdl)
 {
     cmdinterp_data_t ret = {1};
@@ -224,34 +301,11 @@ static cmdinterp_data_t cmdinterp_pwm(cmdinterp_t *hdl)
     stm32_pwm_update_ccr(v);
     return ret;
 }
-static cmdinterp_data_t cmdinterp_adc(cmdinterp_t *hdl)
-{
-    cmdinterp_data_t ret = {1};
-    uint16_t v = (uint16_t)hdl->param[0].i;
-
-    volatile uint16_t *val = (uint16_t*)adc_buf;
-    printf("\n");
-    int i, j, k=0;
-    switch (v) {
-    case 0:
-        for (j=0; j<23; j++) {
-            for (i=0; i<16; i++)
-                printf("%04x ", val[k++]);
-            printf("\n");
-        }
-        break;
-    case 1:
-        for (j=0; j<ADC_BUF_LEN*sizeof(adc_buf[0])/2; j++)
-            printf("%-6d\n", val[k++]);
-        break;
-    }
-    return ret;
-}
 static cmdinterp_data_t cmdinterp_statq(cmdinterp_t *hdl)
 {
     cmdinterp_data_t ret = {1};
 
-    printf("\nLED: %d\n",
+    printf("\nLED (LD2): %d\n",
            HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_1));
 
     /* Temporary variable to retrieve RCC clock configuration */
@@ -271,16 +325,45 @@ static cmdinterp_data_t cmdinterp_statq(cmdinterp_t *hdl)
     }
     printf("APB1 PCLK1 freq = %ld, timer freq = %ld\n",
            HAL_RCC_GetPCLK1Freq(), timer_clock_frequency);
+    printf("TIM4_CR1: 0x%04lx, TIM4_CR2: 0x%08lx, TIM4_SMCR: 0x%08lx, TIM4_SR: 0x%08lx\n",
+           TIM4->CR1, TIM4->CR2, TIM4->SMCR, TIM4->SR);
 
     fflush(stdout);
     return ret;
 }
+static cmdinterp_data_t cmdinterp_tim(cmdinterp_t *hdl)
+{
+    cmdinterp_data_t ret = {1};
+    int id = (int)hdl->param[0].i;
+
+    switch (id) {
+    case 1:
+        // TIM1->RCR  = 0;
+        TIM1->ARR  = hdl->param[1].i;
+        TIM1->CCR1 = hdl->param[2].i;
+        TIM1->CCR2 = hdl->param[3].i;
+        TIM1->CCR3 = hdl->param[4].i;
+        TIM1->CCR4 = hdl->param[5].i;
+    case 8:
+        // TIM8->RCR  = 0;
+        TIM8->ARR  = hdl->param[1].i;
+        TIM8->CCR1 = hdl->param[2].i;
+        TIM8->CCR2 = hdl->param[3].i;
+        TIM8->CCR3 = hdl->param[4].i;
+        TIM8->CCR4 = hdl->param[5].i;
+    default:
+        ret.i = 0;
+        break;
+    }
+    return ret;
+}
 static const cmdinterp_funcmap_t cmdfuncmap[] = {
     {"err", (cmdinterp_cmdfunc_t)cmdinterp_cmderr, 1},
+    {"adc", (cmdinterp_cmdfunc_t)cmdinterp_adc, 1},
     {"chc", (cmdinterp_cmdfunc_t)cmdinterp_chc, 2},
     {"drv", (cmdinterp_cmdfunc_t)cmdinterp_drv, 1},
     {"pwm", (cmdinterp_cmdfunc_t)cmdinterp_pwm, 1},
-    {"adc", (cmdinterp_cmdfunc_t)cmdinterp_adc, 1},
+    {"tim", (cmdinterp_cmdfunc_t)cmdinterp_tim, 6},
     {"stat?", (cmdinterp_cmdfunc_t)cmdinterp_statq, 1},
     {NULL, NULL, 0}
 };
@@ -289,26 +372,31 @@ static cmdinterp_t interp;
 
 void stm32_init()
 {
-    /* Enable timer TIM8 */
+    /* setup timer TIM4.  TIM4 generates reset and speak. */
+    // HAL_TIM_Base_Start(&htim4);
+    /* Stop counter */
+    TIM4->CR1 &= ~(TIM_CR1_CEN);
+    HAL_TIM_OnePulse_Start_IT(&htim4, TIM_CHANNEL_1);
+    HAL_TIM_OnePulse_Start_IT(&htim4, TIM_CHANNEL_2);
+    TIM4->ARR  = 4;
+    TIM4->CCR1 = 1;
+    TIM4->CCR2 = 1;
+    // TIM4->ARR = 1024;  /* in one-pulse mode, pulse stays high until CNT reaches this value. */
+    // TIM4->CCR1 = 512;  /* in one-pulse mode, delay after trigger event, must >0. */
+
+    /* Enable timer TIM8.  TIM8 generates pixel clock (CH1) and ADC sampling trigger (CH3). */
     HAL_TIM_Base_Start(&htim8);
     HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
     HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
     HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_4);
-    TIM8->ARR = 16383; /* PWM counter would INC to this value then start to DEC back to 0. */
-    /* CAUTION!  The high-low ordering is counterintuitive. */
-    TIM8->CCR1 = 16383; /* go low at up-counting */
-    TIM8->CCR2 = 0;     /* go high at down-counting */
-    TIM8->CCR3 = 8192;  /* go high at up-counting */
-    TIM8->CCR4 = 16383; /* go low at down-counting */
-
-    /* Enable timer TIM4 */
-    HAL_TIM_Base_Start(&htim4);
-    HAL_TIM_OnePulse_Start(&htim4, TIM_CHANNEL_1);
-    TIM4->CCR2 = 65535;
-    HAL_TIM_OnePulse_Start(&htim4, TIM_CHANNEL_2);
-    TIM4->ARR = 1024;  /* pulse stays high until CNT reaches this value. */
-    TIM4->CCR1 = 512;  /* delay after trigger event, must >0. */
+    /* In center-aligned mode (up-down counting), number of taps in a
+     * cycle is ARR*2.  ARR=28 would mean 200MHz/(28*2) = 3.571MHz. */
+    TIM8->ARR  = 28; /* PWM counter would INC to this value then start to DEC back to 0. */
+    TIM8->CCR1 = 0;  /* go low at up-counting, Asymmetric PWM1 mode. */
+    TIM8->CCR2 = 28; /* go high at down-counting, Asymmetric PWM1 mode. */
+    TIM8->CCR3 = 14; /* go high at up-counting, Asymmetric PWM2 mode. */
+    TIM8->CCR4 = 14; /* go low at down-counting, Asymmetric PWM2 mode. */
 
     /* Initialize interpreter */
     cmdinterp_init(&interp, NULL, cmdinterp_nextc, cmdfuncmap);
@@ -322,7 +410,6 @@ void stm32_init()
 
 void stm32_main_loop()
 {
-
     cmdinterp_run(&interp);
 
     printf("Hello.\n");

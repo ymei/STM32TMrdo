@@ -62,6 +62,7 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define USER_Btn_Pin GPIO_PIN_13
 #define USER_Btn_GPIO_Port GPIOC
+#define USER_Btn_EXTI_IRQn EXTI15_10_IRQn
 #define MCO_Pin GPIO_PIN_0
 #define MCO_GPIO_Port GPIOH
 #define RMII_MDC_Pin GPIO_PIN_1
@@ -76,8 +77,12 @@ void Error_Handler(void);
 #define RMII_RXD0_GPIO_Port GPIOC
 #define RMII_RXD1_Pin GPIO_PIN_5
 #define RMII_RXD1_GPIO_Port GPIOC
+#define LD1_Pin GPIO_PIN_0
+#define LD1_GPIO_Port GPIOB
 #define RMII_TXD1_Pin GPIO_PIN_13
 #define RMII_TXD1_GPIO_Port GPIOB
+#define LD3_Pin GPIO_PIN_14
+#define LD3_GPIO_Port GPIOB
 #define STLK_RX_Pin GPIO_PIN_8
 #define STLK_RX_GPIO_Port GPIOD
 #define STLK_TX_Pin GPIO_PIN_9
@@ -100,10 +105,8 @@ void Error_Handler(void);
 #define RMII_TX_EN_GPIO_Port GPIOG
 #define RMII_TXD0_Pin GPIO_PIN_13
 #define RMII_TXD0_GPIO_Port GPIOG
-#define LD2_Pin GPIO_PIN_7
-#define LD2_GPIO_Port GPIOB
-#define LD2E1_Pin GPIO_PIN_1
-#define LD2E1_GPIO_Port GPIOE
+#define LD2_Pin GPIO_PIN_1
+#define LD2_GPIO_Port GPIOE
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

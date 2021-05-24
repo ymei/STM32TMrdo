@@ -1,6 +1,12 @@
 # STM32TMrdo
 Topmetal control and readout using STM32 and its internal ADC
 
+## PINS
+  - Pixel clock: `PC6`
+  - ADC sampling trigger: `PC8`
+  - Reset: `PD12`
+  - Speak: `PD13`
+
 # STM32H743ZITx NUCLEO-LQFP144
   - USB VCP (on OTG port) could be opened with `python -m serial.tools.miniterm /dev/cu.usbmodemFD131 115200`
   - D-Cache could cause [DMA issues](https://community.st.com/s/article/FAQ-DMA-is-not-working-on-STM32H7-devices)
@@ -27,9 +33,12 @@ Topmetal control and readout using STM32 and its internal ADC
     - CH1 (Pin PC6) is clock output.
     - CH3 (Pin PC8) is ADC trigger output.
   - TIM4 is set to be the slave of TIM8.
-    - CH1 (Pin PD12) outputs one pulse every time TIM8_CH3 is at rising edge.
-    - CH2 (Pin PD13) outputs constant high.
+    - In one-pulse mode, slave GATED mode.  Effectively the trigger from TIM8 becomes its clock.
+    - Ch1 and Ch2 in PWM mode.
+    - Software starts counter `TIM4->CR1 |= (TIM_CR1_CEN);`.
   - TIM6 triggers the DAC.
+## GPIO
+  - Routing `PD13` back to `PC7` to trigger the start of ADC/DMA acquisition will miss the beginning of the 1st frame by several CLKs.
 
 # STM32 ARM MCU firmware
   - `STM32CubeMX` is used to configure the pin function/clock and setup the basic software skeleton.
