@@ -79,6 +79,7 @@ SECTIONS
     *(.dma_buf*)
   } >RAM_D2
 
+
   /* The startup code goes first into FLASH */
   .isr_vector :
   {
@@ -156,7 +157,7 @@ SECTIONS
     _edata = .;        /* define a global symbol at data end */
   } >DTCMRAM AT> FLASH
 
-  
+
   /* Uninitialized data section */
   . = ALIGN(4);
   .bss :
@@ -184,7 +185,7 @@ SECTIONS
     . = ALIGN(8);
   } >DTCMRAM
 
-  
+
 
   /* Remove information from the standard libraries */
   /DISCARD/ :
@@ -196,4 +197,5 @@ SECTIONS
 
   .ARM.attributes 0 : { *(.ARM.attributes) }
 }
+
 

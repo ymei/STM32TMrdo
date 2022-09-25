@@ -43,7 +43,9 @@ LDSCRIPT = main.ld
 lf="$(find $cube -name '*_FLASH.ld')"
 lfo="$cube/main.ld"
 sed -e 's/$//; s/[ 	]*$//' \
-    -e 'N; /SECTIONS/{
+    -e '/SECTIONS/{
+        N
+        s/$//
         a \
 \ \ /* section for mem destination of dma */\
 \ \ .ram_d2 ORIGIN(RAM_D2) (NOLOAD):\
